@@ -1,5 +1,7 @@
 # API Gateway
 
+### ❌ Current status: Stub! Work in progress! ❌
+
 #### API Gateway-pattern inspired webservice for Kubernetes-hosted microservices. Highly dependent on the Event-service.
 
 #### Currently focused on live/BACKEND Ticket + AffaldsCMS Beskedservice use cases, but intended as a generic API Gateway.
