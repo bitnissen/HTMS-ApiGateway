@@ -2,7 +2,7 @@
 
 ### ❌ Current status: Stub! Work in progress! ❌
 
-#### API Gateway-pattern inspired webservice for Kubernetes-hosted microservices. Highly dependent on the Event-service (coming soon).
+#### API Gateway-pattern inspired webservice for Kubernetes-hosted microservices. Highly dependent on the [Event-service](https://github.com/bitnissen/NodeJS-EventService/tree/master).
 
 ## Purpose
 
@@ -14,7 +14,7 @@ The main purposes of the API Gateway are:
 - Light-weight Javascript-client based on Socket.io for highly optimized remote calls, exposing regular Promise-style request/response-cycles, similar to jQuery's AJAX-methods.
 - Communicates with underlying webservices using a consistent REST with JSON-format.
 - Intentionally has no domain knowledge whatsoever.
-- Passes every call on as events, to the Events-service.
+- Passes every call on as events, to the [Events-service](https://github.com/bitnissen/NodeJS-EventService/tree/master).
 
 ## Getting started
 
@@ -24,7 +24,7 @@ By default this NodeJS server binds to port `60000`.
 
 It is required to provide the following environment variables:
 
--  `SYSEVENT`: tells the API Gateway where the Event-server the IP/hostname and port of the Event-server.
+-  `SYSEVENT`: tells the API Gateway where the Event-service the IP/hostname and port of the Event-service.
 
 ### Docker approach (recommended)
 
