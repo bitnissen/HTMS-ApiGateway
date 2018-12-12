@@ -1,0 +1,50 @@
+{
+  "name": "nodejs-api-gateway",
+  "version": "1.0.0",
+  "description": "API Gateway-pattern inspired webservice for Kubernetes-hosted microservices.",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "babel-watch -w src src/index.js",
+    "build": "babel src --out-dir dist --ignore node_modules",
+    "start": "node dist/index.js"
+  },
+  "author": "Morten Skyt <ms@onlinecity.dk>",
+  "license": "ISC",
+  "dependencies": {
+    "async-throttle": "^1.1.0",
+    "axios": "^0.18.0",
+    "babel-cli": "^6.26.0",
+    "babel-core": "^6.26.3",
+    "babel-plugin-syntax-object-rest-spread": "^6.13.0",
+    "babel-preset-env": "^1.7.0",
+    "babel-preset-stage-2": "^6.24.1",
+    "babel-watch": "^2.0.7",
+    "dotenv": "^6.1.0",
+    "fs-router": "^0.4.1",
+    "micro": "^9.3.3",
+    "micro-cors": "^0.1.1",
+    "module-alias": "^2.1.0",
+    "serve": "^10.1.1",
+    "socket.io": "^2.2.0",
+    "superstruct": "^0.6.0"
+  },
+  "devDependencies": {
+    "eslint": "^5.9.0",
+    "eslint-config-airbnb-base": "^13.1.0",
+    "eslint-import-resolver-module-alias": "^0.1.0",
+    "eslint-plugin-import": "^2.14.0",
+    "i": "^0.3.6",
+    "micro-dev": "^3.0.0",
+    "npm": "^6.4.1"
+  },
+  "_moduleAliases": {
+    "@helpers": "src/helpers",
+    "@routes": "src/routes",
+    "@routes-io": "src/routes-io"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "dist/*"
+    ]
+  }
+}
