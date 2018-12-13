@@ -2,7 +2,7 @@
 
 ### ❌ Current status: Stub! Work in progress! ❌
 
-#### API Gateway-pattern inspired webservice for Kubernetes-hosted microservices. Highly dependent on the [Event-service](https://github.com/bitnissen/NodeJS-EventService/tree/master).
+#### API Gateway-pattern for efficiently proxying to our [Event-service](https://github.com/bitnissen/NodeJS-EventService/tree/master). Exposes the Event-service via regular REST as well as via Socket.io.
 
 ## Purpose
 
@@ -10,7 +10,7 @@ The main purposes of the API Gateway are:
 
 - Stateless API gateway with no database dependency.
 - To act as the primary proxy and gateway to the underlying microservices, which are then only accessible via this service.
-- Allow multiple protocols: REST with JSON as well as all protocols supported by Socket.io (Websockets, JSONP Long Polling and more).
+- Allow multiple protocols: REST with JSON as well as all protocols supported by Socket.io (Websockets and Long Polling).
 - Light-weight Javascript-client based on Socket.io for highly optimized remote calls, exposing regular Promise-style request/response-cycles, similar to jQuery's AJAX-methods.
 - Communicates with underlying webservices using a consistent REST with JSON-format.
 - Intentionally has no domain knowledge whatsoever.
@@ -20,11 +20,16 @@ The main purposes of the API Gateway are:
 
 Either compile and run with Docker, or just run straight off using NodeJS. Supports `.env` as well as regular environment variables, of which the latter has precedence.
 
-By default this NodeJS server binds to port `60000`.
+By default this NodeJS server binds to port `80`.
 
 It is required to provide the following environment variables:
 
 -  `SYSEVENT`: tells the API Gateway where the Event-service the IP/hostname and port of the Event-service.
+
+You may optionally also apply:
+
+- `WEB_PORT`: Defaults to port `80` (ie. regular HTTP-port).
+- `WEB_IP`: Defaults to `0.0.0.0` (ie. available on all interfaces).
 
 ### Docker approach (recommended)
 
@@ -37,14 +42,14 @@ docker build -t sys-apigateway .
 To run you would simply do:
 
 ```shell
-docker run -p 8080:60000 -d -e SYSEVENT="127.0.0.1:60010" sys-apigateway
+docker run -p 8080:80 -d -e SYSEVENT="http://my-event-server" sys-apigateway
 ```
 
 Which would run the service and expose it on port 8080 on your machine.
 
 ### Vanilla NodeJS
 
-The service is tested and known to work with the NodeJS v10-branch. It will probably work with any version after NodeJS 8.4, though we give no guarantees.
+The service is tested and known to work with NodeJS v8.11.1. It should work with any version above 8.4.
 
 To get started, install the dependencies:
 
@@ -55,108 +60,111 @@ npm install
 Then to run the service:
 
 ```bash
-SYSEVENT="127.0.0.1:60010" npm start -l tcp://127.0.0.1:8080
+SYSEVENT="http://my-event-server" npm run dev
 ```
 
-Which will run the webservice on port 8080, bound to the loopback interface. The `-l`-argument also supports UNIX domain sockets, ie. `unix:/path/to/socket.sock` and Windows named pipes, ie. `pipe:\\.\pipe\PipeName`.
+Which will run the webservice on port 80, bound to all interfaces.
 
 ## Documentation
 
-### Protocol
+### Notice: All API-calls are automatically prefixed!
 
-Regardless of how you decide to communicate with the server, be it via REST and JSON or using one of the streaming protocols (Websockets, Long-polling etc.), the server always expects the incoming to be of the same structure. The replies will always be in JSON.
+As a convention, all Event Service listeners prefix their own name to all events they are intended to handle.
 
-The general structure of successful responses are:
+The same is true for the API Gateway, which uses the prefix `www.` to indicate that a request came from, potentially, anyone on the whole wide web.
+
+This means that when you request `"api": "my-service/abc/123"`, you are in fact triggering the event `www.my-service/abc/123`.
+
+This also means that, if the underlying services are properly secured from the internet, then they can safely communicate with each other using other prefixes, while listening to outside requests by hooking into the `www.` prefix.
+
+### Communication via REST
+
+Simply do HTTP POST's to `/call-api` with the request body JSON-encoded. You also need to specify the header `Content-Type: application/json`.
+
+The structure of a request, is:
 
 ```javascript
 {
-    status: 200, // status code
-    body: {}, // can be of any type - the full response of the underlying service. if null, then body is ommited and status 204 is used instead
+    "api": "my-service",
+    "payload": { "abc": "def" }
 }
 ```
 
-In case of errors, the structure is:
+This would trigger the event `www.my-service` to be triggered on the Event Service.
+
+The general structure of a successful response, is an array of responses from the listening end-points.
 
 ```javascript
-{
-    status: 422, // status code
-    error_code: "VALIDATION_FAILED", // generic error code
-    error_details: {}, // key-value pair with error information - useful for generating i18ed messages
-    error_message: "The data could not be validated", // humanly understandable error message in english. Mostly intended for debugging purposes.
-}
+[
+  {
+    "response": [ 1, 2, 3, { "name": "John Doe" } ],
+    "status": 200,
+    "service": "my-normal-service"
+  },
+  {
+    "response": { "message": "Missing Authentication Token" },
+    "status": 403,
+    "service": "my-service-with-auth"
+  }
+]
 ```
 
-### Status-codes
+When communicating via REST, this is returned in JSON. When using our Javascript-client, it is returned as a Javascript-array, as seen above (ie. no JSON decoding necessary).
 
-The following status codes are used.
+If there are no listeners, an empty array will simply be returned, ie.
 
-| Status-code | Explanation                                                  |
-| ----------- | ------------------------------------------------------------ |
-| 200         | Request went as expected.                                    |
-| 204         | Request went as expected, no payload (often seen with DELETE). |
-| 400         | The request is malformatted. Request cancelled at the API Gateway. |
-| 410         | Not service: No underlying service responded to the request. |
-| 401         | Authorization required (none provided).                      |
-| 403         | Forbidden: The authorization given, does not cover the request. |
-| 422         | Unprocessable: Typically due to validation in a service failing. |
-| 500         | Something unexpected went wrong.                             |
-
-### Standard REST-communication
-
-Communicate with the underlying services by entering the path of the service straight into the path.
-
-If the request requires authorization, then please add an `Authorization`-header using `Bearer ACCESS-TOKEN`-type, ie:
-
-```http
-Authorization: Bearer Abee56mao4e5b453l6k456mxasdf
-```
-
-If the request has a minimum amount of data, the data can be JSON + URI-encoded into the variable `r=` and be sent via GET, for instance the arguments `{"get_post":12345}` would end up as following:
-
-`http://localhost:60010/my-service/sub-endpoint?r=%7B%22get_post%22%3A12345%7D`
-
-The same could be achieved by POST-ing the raw JSON-content to the same path, but without query arguments, ie:
-
-```http
-http://localhost:60010/my-service/sub-endpoint
-
-{"get_post":12345}
+```javascript
+[]
 ```
 
 ### Using the Javascript-client
 
-**We clearly recommend this approach in web-applications!**
+**We clearly recommend this approach in web-applications for maximum performance!**
 
-Install the following script in your website. It has no external dependencies.
+Socket.io negotiates the best possible protocol, depending on the clients browser capabilities and network configuration. It initiates by immediately creating a Long Polling-connection and, in parallel, tries to create a websocket-connection, which it then switches to transparently. In both cases (especially if websockets is supported) this really gives a performance boost for all webservice requests.
+
+#### Installing
+
+Install the following scripts in your website.
 
 ```html
-<script src="http://localhost:60010/agw.js"></script>
+<script src="http://my-api-gateway/socket.io/socket.io.js"></script>
+<script src="http://my-api-gateway/client.js"></script>
 ```
 
-Before using the library in your webapp, you need to initialize it by telling it where the API Gateway is located. You do this by writing:
+Furthermore, before doing your first API call, you will need to connect to the API, which you do by:
 
 ```javascript
-agw.connect('http://localhost:60010');
+agw.init('http://my-api-gateway');
 ```
 
-You will then immediately be able to start calling the API. Any calls you initiate before a connection has been established, will simply queue up and execute automatically once a connection is established.
+This method doesn't return anything, but initiates the connection. If you call it multiple times, all sub-sequent calls are silently ignored.
 
-To call the service using the Javascript-client, simply call `agw` with the arguments in the following order:
+You will immediately be able to call the API. Any calls you initiate before the underlying connection has been established, will simply queue up and execute automatically once a connection is established.
+
+#### Doing requests
+
+To call the service using the Javascript-client, call `agw` with the arguments in the following order:
 
 - Path: The path of the underlying service, for instance `my-service/sub-endpoint`.
-- Request (optional): Plain Javascript-object.
+- Payload: Plain Javascript-object.
 
-The call returns a Promise. When a Promise is **resolved**, the argument contains the body - or null, if empty but succesful request. When a Promise is **rejected**, the entire error document is returned, ie. with the properties `status`, `error_code`, `error_details` etc. present.
+The call returns a Promise. When a Promise is **resolved**, the argument contains the body - or null, if empty but succesful request.
 
-For example:
+For example, for a request with a payload, to the event `www.my-service` would look like:
 
 ```javascript
-var request = agw('my-service/sub-endpoint', {r: 12345});
-request.then(function(response) {
-    console.log('Success! Response from server: ', response);
-});
-request.catch(function(error) {
-    console.error('Failure. Status code: ' + error.status + ', code: ' + error.error_code)
-});
+agw('my-service', {some_data: 12345, more_data: [1, 'abc', 3]}).then(
+    response => console.log('Success! Response from server: ', response)
+);
 ```
 
+Or for a request with no payload, you could simply call:
+
+```javascript
+agw('my-service').then(
+    response => console.log('Success! Response from server: ', response)
+);
+```
+
+Be aware that there is no guarantee to the order of handling and response of the requests. Ie. the last request sent, might finish before earlier requests.

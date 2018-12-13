@@ -1,4 +1,4 @@
-import { json } from 'micro';
+import { json, send } from 'micro';
 import { struct } from 'superstruct';
 import validator from '@helpers/validator';
 import postJson from '@helpers/postJson';
@@ -17,8 +17,8 @@ module.exports = async (req, res) => {
 
   const response = await postJson(`${process.env.SYSEVENT}/trigger-event`, {
     event: `www.${body.api}`,
-    payload: body.payload || null,
+    payload: body.payload,
   });
 
-  return response;
+  return send(res, response.status, response.data);
 };

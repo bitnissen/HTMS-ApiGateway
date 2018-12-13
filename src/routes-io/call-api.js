@@ -21,13 +21,14 @@ module.exports = async (socket) => {
     const { uid, api, payload } = data;
 
     const response = await postJson(`${process.env.SYSEVENT}/trigger-event`, {
+      payload,
       event: `www.${api}`,
-      payload: payload || null,
     });
 
     socket.emit('api-reply', {
       uid,
-      payload: response,
+      status: response.status,
+      payload: response.data,
     });
 
     return null;
