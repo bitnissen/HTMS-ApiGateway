@@ -117,6 +117,53 @@ If there are no listeners, an empty array will simply be returned, ie.
 []
 ```
 
+### Communication from external API's
+
+In case you would like external API's to call events directly, it is also possible to use the alternative syntax:
+
+* Method: GET/POST
+* URL: `/external/{api-name}`
+
+This way any data passed on as either query arguments (GET) or in the body (POST) is passed on and doesn't require any particular syntax from the sender side, making it compatible with most webhooks etc.
+
+Normally all event replies are returned in an array, but you might need to return a different syntax when talking with external APIs. For this purpose, you may use the following URL instead, which only returns the response of the first listener:
+
+* URL: `/external-single/{api-name}`
+
+**Note 1:** As there is no guaranteed order of the listeners, we recommend that you only have one listener attached to the endpoints triggered in the `external-single`-endpoint.
+
+**Note 2:** When using `external-single`, all listeners are still called, but only the response of one of the listeners are returned (underlining the point of note 1 above).
+
+
+#### GET-requests
+
+As a GET-request has no body, any additional query parameters are unpacked into a key-value object, ie. `?a=1&b[]=2&b[]=3&c[name]=test` which would be parsed into the following object and passed on as `payload`:
+
+```javascript
+{
+  "a": "1",
+  "b": [
+    "2", "3"
+  ],
+  "c": {
+    "name": "test"
+  }
+}
+```
+
+#### POST-requests
+
+For POST-requests, the entire body is passed on as a Javascript-object/array in the `payload`-property, if the content is JSON.
+
+Otherwise the entire body is passed on  in the `payload`-property as a JSON-encoded string, enclosed in an object, with the property `raw`. For example, if you posted `abc"def`, then the Event Service would receive this object in the payload:
+
+```javascript
+{
+  "raw": "abc\"def"
+}
+```
+
+
 ### Using the Javascript-client
 
 **We clearly recommend this approach in web-applications for maximum performance!**
